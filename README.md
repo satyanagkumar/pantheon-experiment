@@ -22,6 +22,9 @@ source pantheon-env/bin/activate
 ```
 
 ## 2. Pantheon Installation
+
+clone the repository
+
 ```bash
 https://github.com/satyanagkumar/pantheon-experiment.git 
 cd pantheon
