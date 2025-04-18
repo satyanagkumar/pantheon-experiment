@@ -140,7 +140,13 @@ pantheon_report.pdf: Full visual report of results
 
 ---
 
-## 9. Notes
+## 9.Output folders
+All result graphs (throughput, delay, loss rate) and data logs are stored in:
+bash
+pantheon/src/experiment/data_50mbps_10ms/
+pantheon/src/experiment/data_1mbps_200ms/
+
+## 10. Notes
 
 •Ensure Python 2 and Mahimahi are installed and configured
 
@@ -152,7 +158,7 @@ pantheon_report.pdf: Full visual report of results
 
 ---
 
-## 10. Conclusion
+## 11. Conclusion
 This assignment provided a comprehensive evaluation of three widely used congestion control protocols Cubic, BBR, and Vegas under two contrasting network conditions. Through trace-based emulation with Mahimahi, it became evident that Cubic aggressively utilizes available bandwidth but suffers from high queuing delays and loss, especially in constrained environments. BBR, while model-driven, often overshoots bandwidth estimates, leading to increased loss in high-latency networks. In contrast, Vegas consistently demonstrated the most latency-friendly behavior, maintaining lower delays and loss rates by adapting its sending rate proactively.
 
 overall, Cubic proved aggressive and throughput-driven, Vegas excelled in low-latency and low-loss environments, and BBR attempted balance but struggled under constrained bandwidth. These experiments highlighted the importance of protocol selection based on specific network characteristics, reaffirming the trade-offs between throughput, delay, and stability in congestion control design.
