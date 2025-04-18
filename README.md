@@ -1,167 +1,160 @@
-# Pantheon of Congestion Control
-The Pantheon contains wrappers for many popular practical and research
-congestion control schemes. The Pantheon enables them to run on a common
-interface, and has tools to benchmark and compare their performances.
-Pantheon tests can be run locally over emulated links using
-[mahimahi](http://mahimahi.mit.edu/) or over the Internet to a remote machine.
+# Pantheon Congestion Control Experiment Report
 
-Our website is <https://pantheon.stanford.edu>, where you can find more
-information about Pantheon, including supported schemes, measurement results
-on a global testbed so far, and our paper at [USENIX ATC 2018](https://www.usenix.org/conference/atc18/presentation/yan-francis)
-(**Awarded Best Paper**).
-In case you are interested, the scripts and traces
-(including "calibrated emulators") for running the testbed can be found in
-[observatory](https://github.com/StanfordSNR/observatory).
+## Overview
+This project evaluates and compares three congestion control algorithms—**Cubic**, **BBR**, and **Vegas** using the Pantheon framework and Mahimahi emulation. Two distinct network environments are simulated to assess protocol performance under different conditions of latency and bandwidth.
 
-To discuss and talk about Pantheon-related topics and issues, feel free to
-post in the [Google Group](https://groups.google.com/forum/#!forum/pantheon-stanford)
-or send an email to `pantheon-stanford <at> googlegroups <dot> com`.
+---
 
-## Disclaimer
-This is research software. Our scripts will write to the file system in the
-`pantheon` folder. We never run third party programs as root, but we cannot
-guarantee they will never try to escalate privilege to root.
+## 1. Environment Setup
 
-You might want to install dependencies and run the setup on your own, because
-our handy scripts will install packages and perform some system-wide settings
-(e.g., enabling IP forwarding, loading kernel modeuls) as root.
-Please run at your own risk.
+### Host System
+- **Virtualization**: Oracle VirtualBox
+- **Guest OS**: Ubuntu 20.04 LTS
+- **Resources**: 8 CPUs, 6 GB RAM, 25 GB disk
 
-## Preparation
-To clone this repository, run:
-
-```
-git clone https://github.com/StanfordSNR/pantheon.git
+### Initial Setup
+```bash
+sudo apt-get update
+sudo apt install python2 python-pip
+sudo apt install virtualenv
+virtualenv -p python2 pantheon-env
+source pantheon-env/bin/activate
 ```
 
-Many of the tools and programs run by the Pantheon are git submodules in the
-`third_party` folder. To add submodules after cloning, run:
-
-```
-git submodule update --init --recursive  # or tools/fetch_submodules.sh
-```
-
-## Dependencies
-We provide a handy script `tools/install_deps.sh` to install globally required
-dependencies; these dependencies are required before testing **any** scheme
-and are different from the flag `--install-deps` below.
-In particular, we created the [Pantheon-tunnel](https://github.com/StanfordSNR/pantheon-tunnel)
-that is required to instrument each scheme.
-
-You might want to inspect the contents of
-`install_deps.sh` and install these dependencies by yourself in case you want to
-manage dependencies differently. Please note that Pantheon currently
-**only** supports Python 2.7.
-
-Next, for those dependencies required by each congestion control scheme `<cc>`,
-run `src/wrappers/<cc>.py deps` to print a dependency list. You could install
-them by yourself, or run
-
-```
-src/experiments/setup.py --install-deps (--all | --schemes "<cc1> <cc2> ...")
+## 2. Pantheon Installation
+```bash
+https://github.com/satyanagkumar/pantheon-experiment.git 
+cd pantheon
 ```
 
-to install dependencies required by all schemes or a list of schemes separated
-by spaces.
-
-## Setup
-After installing dependencies, run
-
+#### Install Dependencies
+```bash
+sudo ./tools/install_deps.sh
+git submodule update --init --recursive
 ```
-src/experiments/setup.py [--setup] [--all | --schemes "<cc1> <cc2> ..."]
+#### Install Mahimahi
+```bash
+sudo apt install mahimahi
 ```
-
-to set up supported congestion control schemes. `--setup` is required
-to be run only once. In contrast, `src/experiments/setup.py` is
-required to be run on every reboot (without `--setup`).
-
-## Running the Pantheon
-To test schemes in emulated networks locally, run
-
+#### Tunnel Setup
+```bash
+cd third_party/pantheon-tunnel
+./autogen.sh
+./configure
+make
+sudo make install
 ```
-src/experiments/test.py local (--all | --schemes "<cc1> <cc2> ...")
+### 3. Experiment Initialization
+```bash
+cd ~/pantheon/src/experiments
+python2 setup.py --setup --schemes "cubic bbr vegas"
 ```
-
-To test schemes over the Internet to remote machine, run
-
+#### Enable IP Forwarding
+```bash
+sudo sysctl -w net.ipv4.ip_forward=1
 ```
-src/experiments/test.py remote (--all | --schemes "<cc1> <cc2> ...") HOST:PANTHEON-DIR
-```
-
-Run `src/experiments/test.py local -h` and `src/experiments/test.py remote -h`
-for detailed usage and additional optional arguments, such as multiple flows,
-running time, arbitrary set of mahimahi shells for emulation tests,
-data sender side for real tests; use `--data-dir DIR` to specify an
-an output directory to save logs.
-
-## Pantheon analysis
-To analyze test results, run
-
-```
-src/analysis/analyze.py --data-dir DIR
+#### Install LaTeX (for PDF Report)
+```bash
+sudo apt install texlive-latex-recommended
 ```
 
-It will analyze the logs saved by `src/experiments/test.py`, then generate
-performance figures and a full PDF report `pantheon_report.pdf`.
+## 4. Test Methodology
 
-## Running a single congestion control scheme
-All the available schemes can be found in `src/config.yml`. To run a single
-congestion control scheme, first follow the **Dependencies** section to install
-the required dependencies.
+###### Algorithms Tested
 
-At the first time of running, run `src/wrappers/<cc>.py setup`
-to perform the persistent setup across reboots, such as compilation,
-generating or downloading files to send, etc. Then run
-`src/wrappers/<cc>.py setup_after_reboot`, which also has to be run on every
-reboot. In fact, `test/setup.py` performs `setup_after_reboot` by
-default, and runs `setup` on schemes when `--setup` is given.
+Cubic: Default Linux CC protocol, aggressive in high BDP networks
 
-Next, execute the following command to find the running order for a scheme:
+BBR: Google’s model-based CC estimating bandwidth and RTT
+
+Vegas: Delay-based CC aiming to prevent congestion proactively
+
+
+
+##### Scenarios
+
+50mbps_10ms - Low-latency, high-bandwidth
+
+1mbps_200ms - High-latency, constrained link
+
+---
+
+## 5. Trace File Creation
+```bash
+mkdir -p /tmp/traces
+
+# 50 Mbps trace
+python2 -c "import sys; [sys.stdout.write('1500\n') for _ in range(4167)]" > /tmp/traces/50mbps.trace
+
+# 1 Mbps trace
+python2 -c "import sys; [sys.stdout.write('1500\n') for _ in range(83)]" > /tmp/traces/1mbps.trace
 ```
-src/wrappers/<cc>.py run_first
+## 6. Run Experiments
+50 Mbps / 10 ms RTT
+
+
+```bash
+python2 src/experiments/test.py local \
+  --schemes "cubic bbr vegas" \
+  --data-dir src/experiments/data_50mbps_10ms \
+  --runtime 60 \
+  --uplink-trace /tmp/traces/50mbps.trace \
+  --downlink-trace /tmp/traces/50mbps.trace \
+  --prepend-mm-cmds "mm-delay 5" \
+  --extra-mm-link-args "--uplink-queue=droptail --downlink-queue=droptail \
+    --uplink-queue-args=packets=500 --downlink-queue-args=packets=500"
 ```
 
-Depending on the output of `run_first`, run
-
-```
-# Receiver first
-src/wrappers/<cc>.py receiver port
-src/wrappers/<cc>.py sender IP port
-```
-
-or
-
-```
-# Sender first
-src/wrappers/<cc>.py sender port
-src/wrappers/<cc>.py receiver IP port
+1 Mbps / 200 ms RTT
+```bash
+python2 src/experiments/test.py local \
+  --schemes "cubic bbr vegas" \
+  --data-dir src/experiments/data_1mbps_200ms \
+  --runtime 60 \
+  --uplink-trace /tmp/traces/1mbps.trace \
+  --downlink-trace /tmp/traces/1mbps.trace \
+  --prepend-mm-cmds "mm-delay 100" \
+  --extra-mm-link-args "--uplink-queue=droptail --downlink-queue=droptail \
+    --uplink-queue-args=packets=500 --downlink-queue-args=packets=500"
 ```
 
-Run `src/wrappers/<cc>.py -h` for detailed usage.
+## 7. Analyze Results
+```bash
+# For 50 Mbps
+python2 src/analysis/analyze.py --data-dir src/experiments/data_50mbps_10ms
 
-## How to add your own congestion control
-Adding your own congestion control to Pantheon is easy! Just follow these
-steps:
+# For 1 Mbps
+python2 src/analysis/analyze.py --data-dir src/experiments/data_1mbps_200ms
+```
 
-1. Fork this repository.
 
-2. Add your congestion control repository as a submodule to `pantheon`:
+## 8. Output Files
+Each run generates the following for each scheme:
 
-   ```
-   git submodule add <your-cc-repo-url> third_party/<your-cc-repo-name>
-   ```
+*_datalink_throughput_run1.png: Throughput over time
 
-   and add `ignore = dirty` to `.gitmodules` under your submodule.
+*_datalink_delay_run1.png: Delay (one-way) over time
 
-3. In `src/wrappers`, read `example.py` and create your own `<your-cc-name>.py`.
-   Make sure the sender and receiver run longer than 60 seconds; you could also
-   leave them running forever without the need to kill them.
+*_stats_run1.log: Avg throughput, 95th percentile delay, loss rate
 
-4. Add your scheme to `src/config.yml` along with settings of
-   `name`, `color` and `marker`, so that `src/experiments/test.py` is able to
-   find your scheme and `src/analysis/analyze.py` is able to plot your scheme
-   with the specified settings.
+pantheon_report.pdf: Full visual report of results
 
-5. Add your scheme to `SCHEMES` in `.travis.yml` for continuous integration testing.
+---
 
-6. Send us a pull request and that's it, you're in the Pantheon!
+## 9. Notes
+
+•Ensure Python 2 and Mahimahi are installed and configured
+
+•IP forwarding must remain enabled during test runs
+
+•Run commands as root or with elevated permissions for networking support
+
+•Graphs and logs will be available in src/experiments/folder/
+
+---
+
+## 10. Conclusion
+This assignment provided a comprehensive evaluation of three widely used congestion control protocols Cubic, BBR, and Vegas under two contrasting network conditions. Through trace-based emulation with Mahimahi, it became evident that Cubic aggressively utilizes available bandwidth but suffers from high queuing delays and loss, especially in constrained environments. BBR, while model-driven, often overshoots bandwidth estimates, leading to increased loss in high-latency networks. In contrast, Vegas consistently demonstrated the most latency-friendly behavior, maintaining lower delays and loss rates by adapting its sending rate proactively.
+
+overall, Cubic proved aggressive and throughput-driven, Vegas excelled in low-latency and low-loss environments, and BBR attempted balance but struggled under constrained bandwidth. These experiments highlighted the importance of protocol selection based on specific network characteristics, reaffirming the trade-offs between throughput, delay, and stability in congestion control design.
+
+---
